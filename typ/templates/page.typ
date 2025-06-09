@@ -12,8 +12,8 @@
 )
 #import templates: *
 #import "@preview/numbly:0.1.0": numbly
-#import "@preview/zebraw:0.4.5": zebraw-init, zebraw-html
-#import "theme.typ": theme-box
+#import "@preview/zebraw:0.5.2": zebraw-init, zebraw
+#import "theme.typ": *
 
 // Metadata
 #let page-width = get-page-width()
@@ -63,8 +63,7 @@
 #let list-indent = 0.5em
 
 #let raw-rules(body) = {
-  /// HTML code block supported by zebraw.
-  show: if is-dark-theme {
+  let init-with-theme((code-extra-colors, is-dark)) = if is-dark {
     zebraw-init.with(
       // should vary by theme
       background-color: if code-extra-colors.bg != none {
@@ -74,11 +73,21 @@
       comment-color: rgb("#394b70"),
       lang-color: rgb("#3d59a1"),
       lang: false,
+      numbering: false,
     )
   } else {
-    zebraw-init.with(lang: false)
+    zebraw-init.with(
+      // should vary by theme
+      background-color: if code-extra-colors.bg != none {
+        (code-extra-colors.bg, code-extra-colors.bg)
+      },
+      lang: false,
+      numbering: false,
+    )
   }
 
+  /// HTML code block supported by zebraw.
+  show: init-with-theme((code-extra-colors, is-dark-theme))
 
   // code block setting
   set raw(theme: theme-style.code-theme) if theme-style.code-theme.len() > 0
@@ -99,9 +108,9 @@
   } else {
     set text(fill: code-extra-colors.fg) if code-extra-colors.fg != none
     set par(justify: false)
-    zebraw-html(
+    zebraw(
       block-width: 100%,
-      line-width: 100%,
+      // line-width: 100%,
       wrap: false,
       it,
     )
