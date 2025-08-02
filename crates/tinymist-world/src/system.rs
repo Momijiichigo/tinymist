@@ -1,3 +1,4 @@
+#![cfg(not(target_arch = "wasm32"))]
 use std::{borrow::Cow, sync::Arc};
 
 use tinymist_std::{error::prelude::*, ImmutPath};
@@ -25,7 +26,7 @@ impl crate::CompilerFeat for SystemCompilerFeat {
     /// It accesses a physical file system.
     type AccessModel = SystemAccessModel;
     /// It performs native HTTP requests for fetching package data.
-    type Registry = HttpRegistry;
+    type Registry = BrowserRegistry;
 }
 
 /// The compiler universe in system environment.
@@ -40,7 +41,7 @@ impl TypstSystemUniverse {
     /// See SystemCompilerFeat for instantiation details.
     /// See [`CompileOpts`] for available options.
     pub fn new(mut opts: CompileOpts) -> Result<Self> {
-        let registry: Arc<HttpRegistry> = Arc::default();
+        let registry: Arc<BrowserRegistry> = Arc::default();
         let resolver = Arc::new(RegistryPathMapper::new(registry.clone()));
         let inputs = std::mem::take(&mut opts.inputs);
         let timestamp = opts.creation_timestamp;
@@ -75,7 +76,7 @@ impl SystemUniverseBuilder {
         entry: EntryState,
         inputs: ImmutDict,
         font_resolver: Arc<FontResolverImpl>,
-        package_registry: HttpRegistry,
+        package_registry: BrowserRegistry,
     ) -> TypstSystemUniverse {
         let registry = Arc::new(package_registry);
         let resolver = Arc::new(RegistryPathMapper::new(registry.clone()));
@@ -104,12 +105,8 @@ impl SystemUniverseBuilder {
     }
 
     /// Resolve package registry from given options.
-    pub fn resolve_package(
-        cert_path: Option<ImmutPath>,
-        args: Option<&CompilePackageArgs>,
-    ) -> HttpRegistry {
-        HttpRegistry::new(
-            cert_path,
+    pub fn resolve_package(args: Option<&CompilePackageArgs>) -> BrowserRegistry {
+        BrowserRegistry::new(
             args.and_then(|args| Some(args.package_path.clone()?.into())),
             args.and_then(|args| Some(args.package_cache_path.clone()?.into())),
         )

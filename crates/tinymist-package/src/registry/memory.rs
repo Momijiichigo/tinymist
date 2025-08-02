@@ -5,7 +5,8 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use super::{PackageError, PackageRegistry, PackageSpec};
+use super::{PackageRegistry, PackageSpec};
+use typst::diag::{PackageError, PackageResult};
 
 /// Creates a memory package registry from the builder.
 #[derive(Default, Debug)]
@@ -27,7 +28,7 @@ impl MemoryRegistry {
 
 impl PackageRegistry for MemoryRegistry {
     /// Resolves a package.
-    fn resolve(&self, spec: &PackageSpec) -> Result<Arc<Path>, PackageError> {
+    fn resolve(&self, spec: &PackageSpec) -> PackageResult<Arc<Path>> {
         self.0
             .get(spec)
             .cloned()

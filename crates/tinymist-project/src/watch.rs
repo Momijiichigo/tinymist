@@ -1,3 +1,4 @@
+#![cfg(not(target_arch = "wasm32"))]
 //! upstream <https://github.com/rust-lang/rust-analyzer/tree/master/crates/vfs-notify>
 //!
 //! An implementation of `watch_deps` using `notify` crate.

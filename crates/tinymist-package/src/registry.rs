@@ -4,7 +4,7 @@ use std::num::NonZeroUsize;
 use std::{path::Path, sync::Arc};
 
 use ecow::EcoString;
-pub use typst::diag::PackageError;
+pub use typst::diag::{PackageError, PackageResult};
 pub use typst::syntax::package::PackageSpec;
 
 mod dummy;
@@ -18,9 +18,9 @@ mod browser;
 #[cfg(feature = "browser")]
 pub use browser::*;
 
-#[cfg(feature = "http-registry")]
+#[cfg(all(feature = "http-registry", not(target_arch = "wasm32")))]
 mod http;
-#[cfg(feature = "http-registry")]
+#[cfg(all(feature = "http-registry", not(target_arch = "wasm32")))]
 pub use http::*;
 
 /// The default Typst registry.
@@ -39,7 +39,7 @@ pub trait PackageRegistry {
     }
 
     /// Resolves a package specification to a local path.
-    fn resolve(&self, spec: &PackageSpec) -> Result<Arc<Path>, PackageError>;
+    fn resolve(&self, spec: &PackageSpec) -> PackageResult<Arc<Path>>;
 
     /// A list of all available packages and optionally descriptions for them.
     ///

@@ -31,11 +31,13 @@ toml = { workspace = true, optional = true }
 reqwest = { workspace = true, optional = true }
 dirs = { workspace = true, optional = true }
 walkdir = { workspace = true, optional = true }
-fastrand = { workspace = true, optional = true }
+ehttp = { workspace = true, optional = true }
 
 js-sys = { workspace = true, optional = true }
 wasm-bindgen = { workspace = true, optional = true }
 web-sys = { workspace = true, optional = true, features = ["console"] }
+
+pollster = { workspace = true, optional = true }
 
 [dev-dependencies]
 insta.workspace = true
@@ -50,7 +52,7 @@ release-pack = ["http-pack"]
 universe-pack = ["http-pack"]
 http-registry = ["reqwest", "dirs"]
 web = ["wasm-bindgen", "web-sys", "js-sys", "tinymist-std/web"]
-browser = ["web"]
+browser = ["web", "pollster", "reqwest", "ehttp"]
 system = [
     "http-registry",
     "fs-pack",

@@ -26,5 +26,3 @@ Typst Source:        {}
     )
 });
 
-#[cfg(feature = "web")]
-pub mod web;

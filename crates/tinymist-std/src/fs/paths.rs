@@ -295,7 +295,7 @@ pub fn path2bytes(path: &Path) -> Result<&[u8]> {
         use std::os::unix::prelude::*;
         Ok(path.as_os_str().as_bytes())
     }
-    #[cfg(windows)]
+    #[cfg(any(windows, target_arch = "wasm32"))]
     {
         match path.as_os_str().to_str() {
             Some(s) => Ok(s.as_bytes()),
@@ -314,7 +314,7 @@ pub fn bytes2path(bytes: &[u8]) -> Result<PathBuf> {
         use std::os::unix::prelude::*;
         Ok(PathBuf::from(OsStr::from_bytes(bytes)))
     }
-    #[cfg(windows)]
+    #[cfg(any(windows, target_arch = "wasm32"))]
     {
         use std::str;
         match str::from_utf8(bytes) {
@@ -533,24 +533,31 @@ fn _link_or_copy(src: &Path, dst: &Path) -> Result<()> {
     }
 
     let link_result = if src.is_dir() {
-        #[cfg(target_os = "redox")]
-        use std::os::redox::fs::symlink;
-        #[cfg(unix)]
-        use std::os::unix::fs::symlink;
-        #[cfg(windows)]
-        // FIXME: This should probably panic or have a copy fallback. Symlinks
-        // are not supported in all windows environments. Currently symlinking
-        // is only used for .dSYM directories on macos, but this shouldn't be
-        // accidentally relied upon.
-        use std::os::windows::fs::symlink_dir as symlink;
+        #[cfg(target_arch = "wasm32")]
+        {
+            return Err(anyhow::anyhow!("symlinks not supported on wasm"));
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            #[cfg(target_os = "redox")]
+            use std::os::redox::fs::symlink;
+            #[cfg(unix)]
+            use std::os::unix::fs::symlink;
+            #[cfg(windows)]
+            // FIXME: This should probably panic or have a copy fallback. Symlinks
+            // are not supported in all windows environments. Currently symlinking
+            // is only used for .dSYM directories on macos, but this shouldn't be
+            // accidentally relied upon.
+            use std::os::windows::fs::symlink_dir as symlink;
 
-        let dst_dir = dst.parent().unwrap();
-        let src = if src.starts_with(dst_dir) {
-            src.strip_prefix(dst_dir).unwrap()
-        } else {
-            src
-        };
-        symlink(src, dst)
+            let dst_dir = dst.parent().unwrap();
+            let src = if src.starts_with(dst_dir) {
+                src.strip_prefix(dst_dir).unwrap()
+            } else {
+                src
+            };
+            symlink(src, dst)
+        }
     } else if cfg!(target_os = "macos") {
         // There seems to be a race condition with APFS when hard-linking
         // binaries. Gatekeeper does not have signing or hash information

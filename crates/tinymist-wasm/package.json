@@ -1,0 +1,19 @@
+{
+  "name": "tinymist-monaco",
+  "version": "0.1.0",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "bunchee"
+  },
+  "dependencies": {
+    "monaco-languageclient": "^9.8.0",
+    "vscode-languageclient": "^9.0.1",
+    "vscode-languageserver-protocol": "^3.17.5"
+  },
+  "devDependencies": {
+    "monaco-editor": "^0.43.0",
+    "bunchee": "^4.4.8"
+  }
+}

@@ -23,9 +23,9 @@ mod compute;
 mod snapshot;
 
 /// Run the compiler in the system environment.
-#[cfg(feature = "system")]
+#[cfg(all(feature = "system", not(target_arch = "wasm32")))]
 pub mod system;
-#[cfg(feature = "system")]
+#[cfg(all(feature = "system", not(target_arch = "wasm32")))]
 pub use system::{print_diagnostics, SystemCompilerFeat, TypstSystemUniverse, TypstSystemWorld};
 
 /// Run the compiler in the browser environment.

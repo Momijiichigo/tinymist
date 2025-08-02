@@ -1,18 +1,23 @@
+#![cfg(not(target_arch = "wasm32"))]
+
 //! Http registry for tinymist.
 
 use std::path::Path;
 use std::sync::{Arc, OnceLock};
 
 use parking_lot::Mutex;
-use reqwest::blocking::Response;
-use reqwest::Certificate;
 use tinymist_std::ImmutPath;
 use typst::diag::{eco_format, EcoString, PackageResult, StrResult};
 use typst::syntax::package::{PackageVersion, VersionlessPackageSpec};
 
+#[cfg(not(target_arch = "wasm32"))]
+use reqwest::blocking::Response;
+
 use super::{
     DummyNotifier, Notifier, PackageError, PackageRegistry, PackageSpec, DEFAULT_REGISTRY,
 };
+
+type ReqwestResponse = reqwest::blocking::Response;
 
 /// The http package registry for typst.ts.
 pub struct HttpRegistry {
@@ -309,7 +314,7 @@ impl PackageStorage {
 pub(crate) fn threaded_http<T: Send + Sync>(
     url: &str,
     cert_path: Option<&Path>,
-    f: impl FnOnce(Result<Response, reqwest::Error>) -> T + Send + Sync,
+    f: impl FnOnce(Result<ReqwestResponse, reqwest::Error>) -> T + Send + Sync,
 ) -> Option<T> {
     std::thread::scope(|s| {
         s.spawn(move || {
@@ -318,7 +323,7 @@ pub(crate) fn threaded_http<T: Send + Sync>(
             let client = if let Some(cert_path) = cert_path {
                 let cert = std::fs::read(cert_path)
                     .ok()
-                    .and_then(|buf| Certificate::from_pem(&buf).ok());
+                    .and_then(|buf| reqwest::Certificate::from_pem(&buf).ok());
                 if let Some(cert) = cert {
                     client_builder.add_root_certificate(cert).build().unwrap()
                 } else {

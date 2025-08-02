@@ -168,7 +168,7 @@ impl CompileOnceArgs {
     }
 }
 
-#[cfg(feature = "system")]
+#[cfg(all(feature = "system", not(target_arch = "wasm32")))]
 impl CompileOnceArgs {
     /// Resolves the arguments into a system universe. This is also a sample
     /// implementation of how to resolve the arguments (user inputs) into a

@@ -1,8 +1,9 @@
 use ecow::eco_format;
-use typst::diag::PackageError;
+use typst::diag::{PackageError, PackageResult};
 
 use super::*;
-use crate::registry::threaded_http;
+#[cfg(all(feature = "http-registry", not(target_arch = "wasm32")))]
+use crate::registry::http::threaded_http;
 
 /// A package in the remote http.
 #[derive(Clone)]
@@ -27,6 +28,7 @@ impl<S: AsRef<str>> fmt::Debug for HttpPack<S> {
 }
 
 impl<S: AsRef<str>> PackFs for HttpPack<S> {
+    #[cfg(all(feature = "http-registry", not(target_arch = "wasm32")))]
     fn read_all(
         &mut self,
         f: &mut (dyn FnMut(&str, PackFile) -> PackageResult<()> + Send + Sync),
@@ -45,15 +47,17 @@ impl<S: AsRef<str>> PackFs for HttpPack<S> {
             let decompressed = flate2::read::GzDecoder::new(reader);
             let mut tarbar = TarballPack::new(decompressed);
 
-            // .unpack(package_dir)
-            // .map_err(|err| {
-            //     std::fs::remove_dir_all(package_dir).ok();
-            //     PackageError::MalformedArchive(Some(eco_format!("{err}")))
-            // })
-
             tarbar.read_all(f)
         })
         .ok_or_else(|| PackageError::Other(Some(eco_format!("cannot spawn http thread"))))?
+    }
+
+    #[cfg(not(all(feature = "http-registry", not(target_arch = "wasm32"))))]
+    fn read_all(
+        &mut self,
+        _f: &mut (dyn FnMut(&str, PackFile) -> PackageResult<()> + Send + Sync),
+    ) -> PackageResult<()> {
+        panic!("http-registry feature is not enabled or not supported on this target")
     }
 }
 

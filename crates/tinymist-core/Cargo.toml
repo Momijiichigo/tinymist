@@ -15,16 +15,8 @@ rust-version.workspace = true
 crate-type = ["cdylib", "rlib"]
 
 [features]
-default = ["web", "no-content-hint"]
+default = ["no-content-hint"]
 
-web = [
-    "wasm-bindgen",
-    "js-sys",
-    "console_error_panic_hook",
-    "no-content-hint",
-    "tinymist-world/web",
-    "reflexo-typst/web",
-]
 
 no-content-hint = ["reflexo-typst/no-content-hint"]
 

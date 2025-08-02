@@ -1,0 +1,29 @@
+[package]
+name = "tinymist-wasm"
+description.workspace = true
+authors.workspace = true
+version.workspace = true
+edition.workspace = true
+readme.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+tinymist-core = { path = "../tinymist-core" }
+tinymist-query = { path = "../tinymist-query" }
+tinymist-vfs = { path = "../tinymist-vfs" }
+tinymist-world = { path = "../tinymist-world" }
+
+wasm-bindgen.workspace = true
+js-sys.workspace = true
+web-sys = { workspace = true, features = ["console"] }
+serde-wasm-bindgen.workspace = true
+console_error_panic_hook.workspace = true
+
+[lints]
+workspace = true
