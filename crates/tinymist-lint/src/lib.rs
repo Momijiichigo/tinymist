@@ -6,6 +6,7 @@ use tinymist_analysis::{
     syntax::ExprInfo,
     ty::{Ty, TyCtx, TypeInfo},
 };
+#[cfg(not(target_arch = "wasm32"))]
 use tinymist_project::LspWorld;
 use typst::{
     diag::{eco_format, EcoString, SourceDiagnostic, Tracepoint},

@@ -28,7 +28,7 @@ serde.workspace = true
 serde_json.workspace = true
 tinymist-task.workspace = true
 tinymist-world = { workspace = true }
-tinymist-std = { workspace = true, features = ["typst"] }
+tinymist-std = { workspace = true, features = ["typst", "web"] }
 tinymist-derive.workspace = true
 tinymist-l10n.workspace = true
 toml = { workspace = true, optional = true }
@@ -37,11 +37,11 @@ typst-assets.workspace = true
 notify.workspace = true
 
 [features]
-
+default = ["system"]
 fonts = ["typst-assets/fonts"]
 no-content-hint = ["tinymist-task/no-content-hint"]
 lsp = ["system", "toml"]
-
+browser = ["tinymist-std/web", "tinymist-world/browser"]
 system = ["tinymist-std/system", "tinymist-world/system"]
 
 [lints]

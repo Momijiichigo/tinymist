@@ -14,16 +14,19 @@ rust-version.workspace = true
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-tinymist-core = { path = "../tinymist-core" }
-tinymist-query = { path = "../tinymist-query" }
-tinymist-vfs = { path = "../tinymist-vfs" }
-tinymist-world = { path = "../tinymist-world" }
-
-wasm-bindgen.workspace = true
-js-sys.workspace = true
+# Minimal dependencies for WASM
+wasm-bindgen = { workspace = true }
+js-sys = { workspace = true }
 web-sys = { workspace = true, features = ["console"] }
-serde-wasm-bindgen.workspace = true
-console_error_panic_hook.workspace = true
+serde = { workspace = true, features = ["derive"] }
+serde-wasm-bindgen = { workspace = true }
+console_error_panic_hook = { workspace = true }
+
+[features]
+default = []
+
+# We don't need the patch section as it's being ignored for non-root packages
+# The workspace's patch will be used instead
 
 [lints]
 workspace = true

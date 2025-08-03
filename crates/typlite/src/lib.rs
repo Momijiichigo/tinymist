@@ -14,8 +14,11 @@ use std::sync::Arc;
 pub use error::*;
 
 use cmark_writer::ast::Node;
+#[cfg(not(target_arch = "wasm32"))]
 use tinymist_project::base::ShadowApi;
+#[cfg(not(target_arch = "wasm32"))]
 use tinymist_project::vfs::WorkspaceResolver;
+#[cfg(not(target_arch = "wasm32"))]
 use tinymist_project::{EntryReader, LspWorld, TaskInputs};
 use tinymist_std::error::prelude::*;
 use typst::foundations::Bytes;
@@ -35,6 +38,10 @@ use crate::tinymist_std::typst::{LazyHash, TypstDict};
 pub type Result<T, Err = Error> = std::result::Result<T, Err>;
 
 pub use cmark_writer::ast;
+
+// WASM compatibility - provide empty struct for WASM builds
+#[cfg(target_arch = "wasm32")]
+pub struct CompileOnceArgs;
 pub use tinymist_project::CompileOnceArgs;
 pub use tinymist_std;
 
