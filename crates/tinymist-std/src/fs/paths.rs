@@ -314,7 +314,7 @@ pub fn bytes2path(bytes: &[u8]) -> Result<PathBuf> {
         use std::os::unix::prelude::*;
         Ok(PathBuf::from(OsStr::from_bytes(bytes)))
     }
-    #[cfg(windows)]
+    #[cfg(any(windows, target_arch = "wasm32"))]
     {
         use std::str;
         match str::from_utf8(bytes) {
@@ -533,23 +533,38 @@ fn _link_or_copy(src: &Path, dst: &Path) -> Result<()> {
     }
 
     let link_result = if src.is_dir() {
+        #[cfg(target_os = "redox")]
+        use std::os::redox::fs::symlink;
+        #[cfg(unix)]
+        use std::os::unix::fs::symlink;
+        #[cfg(windows)]
+        // FIXME: This should probably panic or have a copy fallback. Symlinks
+        // are not supported in all windows environments. Currently symlinking
+        // is only used for .dSYM directories on macos, but this shouldn't be
+        // accidentally relied upon.
+        use std::os::windows::fs::symlink_dir as symlink;
+        
         #[cfg(target_arch = "wasm32")]
         {
-            return Err(anyhow::anyhow!("symlinks not supported on wasm"));
+            // WASM doesn't support symlinks, so we fall back to copying the directory
+            // This is a recursive copy operation
+            fn copy_dir_all(src: &std::path::Path, dst: &std::path::Path) -> std::io::Result<()> {
+                std::fs::create_dir_all(dst)?;
+                for entry in std::fs::read_dir(src)? {
+                    let entry = entry?;
+                    let ty = entry.file_type()?;
+                    if ty.is_dir() {
+                        copy_dir_all(&entry.path(), &dst.join(entry.file_name()))?;
+                    } else {
+                        std::fs::copy(&entry.path(), &dst.join(entry.file_name()))?;
+                    }
+                }
+                Ok(())
+            }
+            copy_dir_all(src, dst)
         }
         #[cfg(not(target_arch = "wasm32"))]
         {
-            #[cfg(target_os = "redox")]
-            use std::os::redox::fs::symlink;
-            #[cfg(unix)]
-            use std::os::unix::fs::symlink;
-            #[cfg(windows)]
-            // FIXME: This should probably panic or have a copy fallback. Symlinks
-            // are not supported in all windows environments. Currently symlinking
-            // is only used for .dSYM directories on macos, but this shouldn't be
-            // accidentally relied upon.
-            use std::os::windows::fs::symlink_dir as symlink;
-
             let dst_dir = dst.parent().unwrap();
             let src = if src.starts_with(dst_dir) {
                 src.strip_prefix(dst_dir).unwrap()
@@ -586,6 +601,9 @@ fn _link_or_copy(src: &Path, dst: &Path) -> Result<()> {
             },
             |_| Ok(()),
         )
+    } else if cfg!(target_arch = "wasm32") {
+        // WASM doesn't support hard links, so we fall back to copying for files
+        fs::copy(src, dst).map(|_| ())
     } else {
         fs::hard_link(src, dst)
     };

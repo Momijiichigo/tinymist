@@ -10,7 +10,8 @@
     "contrib/typst-preview/editors/vscode",
     "contrib/html/editors/vscode",
     "tools/editor-tools",
-    "crates/tinymist-wasm"
+    "tools/typst-dom",
+    "tools/typst-preview-frontend"
   ],
   "scripts": {
     "fmt": "cargo fmt --all && npx prettier --write tools/**/*.{js,mjs,cjs,ts,mts,cts} editors/vscode/**/*.{js,mjs,cjs,ts,mts,cts}",

@@ -1,25 +1,44 @@
-#![cfg(not(target_arch = "wasm32"))]
-
 //! Http registry for tinymist.
 
+#[cfg(not(target_arch = "wasm32"))]
 use std::path::Path;
+#[cfg(not(target_arch = "wasm32"))]
 use std::sync::{Arc, OnceLock};
 
+#[cfg(not(target_arch = "wasm32"))]
 use parking_lot::Mutex;
+#[cfg(not(target_arch = "wasm32"))]
+use reqwest::blocking::Response;
+#[cfg(not(target_arch = "wasm32"))]
+use reqwest::Certificate;
+#[cfg(not(target_arch = "wasm32"))]
 use tinymist_std::ImmutPath;
+#[cfg(not(target_arch = "wasm32"))]
 use typst::diag::{eco_format, EcoString, PackageResult, StrResult};
+#[cfg(not(target_arch = "wasm32"))]
 use typst::syntax::package::{PackageVersion, VersionlessPackageSpec};
 
 #[cfg(not(target_arch = "wasm32"))]
-use reqwest::blocking::Response;
-
 use super::{
     DummyNotifier, Notifier, PackageError, PackageRegistry, PackageSpec, DEFAULT_REGISTRY,
 };
 
-type ReqwestResponse = reqwest::blocking::Response;
+// WASM stubs
+#[cfg(target_arch = "wasm32")]
+use super::{DummyNotifier, Notifier, PackageError, PackageRegistry, PackageSpec};
+#[cfg(target_arch = "wasm32")]
+use std::path::Path;
+#[cfg(target_arch = "wasm32")]
+use std::sync::Arc;
+#[cfg(target_arch = "wasm32")]
+use typst::diag::EcoString;
+#[cfg(target_arch = "wasm32")]
+use parking_lot::Mutex;
+#[cfg(target_arch = "wasm32")]
+use tinymist_std::ImmutPath;
 
 /// The http package registry for typst.ts.
+#[cfg(not(target_arch = "wasm32"))]
 pub struct HttpRegistry {
     /// The path at which local packages (`@local` packages) are stored.
     package_path: Option<ImmutPath>,
@@ -35,6 +54,7 @@ pub struct HttpRegistry {
     // package_dir_cache: RwLock<HashMap<PackageSpec, Result<ImmutPath, PackageError>>>,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl Default for HttpRegistry {
     fn default() -> Self {
         Self {
@@ -49,6 +69,7 @@ impl Default for HttpRegistry {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl std::ops::Deref for HttpRegistry {
     type Target = PackageStorage;
 
@@ -57,6 +78,7 @@ impl std::ops::Deref for HttpRegistry {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl HttpRegistry {
     /// Create a new registry.
     pub fn new(
@@ -106,6 +128,7 @@ impl HttpRegistry {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl PackageRegistry for HttpRegistry {
     fn resolve(&self, spec: &PackageSpec) -> Result<ImmutPath, PackageError> {
         self.storage().prepare_package(spec)
@@ -122,6 +145,7 @@ pub const DEFAULT_PACKAGES_SUBDIR: &str = "typst/packages";
 
 /// Holds information about where packages should be stored and downloads them
 /// on demand, if possible.
+#[cfg(not(target_arch = "wasm32"))]
 pub struct PackageStorage {
     /// The path at which non-local packages should be stored when downloaded.
     package_cache_path: Option<ImmutPath>,
@@ -134,6 +158,7 @@ pub struct PackageStorage {
     notifier: Arc<Mutex<dyn Notifier + Send>>,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl PackageStorage {
     /// Creates a new package storage for the given package paths.
     /// It doesn't fallback directories, thus you can disable the related
@@ -311,10 +336,11 @@ impl PackageStorage {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 pub(crate) fn threaded_http<T: Send + Sync>(
     url: &str,
     cert_path: Option<&Path>,
-    f: impl FnOnce(Result<ReqwestResponse, reqwest::Error>) -> T + Send + Sync,
+    f: impl FnOnce(Result<Response, reqwest::Error>) -> T + Send + Sync,
 ) -> Option<T> {
     std::thread::scope(|s| {
         s.spawn(move || {
@@ -323,7 +349,7 @@ pub(crate) fn threaded_http<T: Send + Sync>(
             let client = if let Some(cert_path) = cert_path {
                 let cert = std::fs::read(cert_path)
                     .ok()
-                    .and_then(|buf| reqwest::Certificate::from_pem(&buf).ok());
+                    .and_then(|buf| Certificate::from_pem(&buf).ok());
                 if let Some(cert) = cert {
                     client_builder.add_root_certificate(cert).build().unwrap()
                 } else {
@@ -338,4 +364,59 @@ pub(crate) fn threaded_http<T: Send + Sync>(
         .join()
         .ok()
     })
+}
+
+// WASM stub implementation
+#[cfg(target_arch = "wasm32")]
+pub struct HttpRegistry;
+
+#[cfg(target_arch = "wasm32")]
+impl Default for HttpRegistry {
+    fn default() -> Self {
+        Self
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+impl HttpRegistry {
+    pub fn new(
+        _cert_path: Option<ImmutPath>,
+        _package_path: Option<ImmutPath>, 
+        _package_cache_path: Option<ImmutPath>,
+    ) -> Self {
+        Self
+    }
+
+    pub fn set_notifier(&mut self, _notifier: Arc<parking_lot::Mutex<dyn Notifier + Send>>) {}
+
+    pub fn package_path(&self) -> Option<&ImmutPath> {
+        None
+    }
+
+    pub fn package_cache_path(&self) -> Option<&ImmutPath> {
+        None
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+impl PackageRegistry for HttpRegistry {
+    fn resolve(&self, _spec: &PackageSpec) -> Result<Arc<Path>, PackageError> {
+        Err(PackageError::Other(Some(EcoString::from(
+            "HTTP package registry is not supported in WASM environment"
+        ))))
+    }
+
+    fn packages(&self) -> &[(PackageSpec, Option<EcoString>)] {
+        &[]
+    }
+}
+
+/// WASM stub for threaded_http function
+#[cfg(target_arch = "wasm32")]
+pub(crate) fn threaded_http<T: Send + Sync>(
+    _url: &str,
+    _cert_path: Option<&Path>,
+    _f: impl FnOnce(Result<(), String>) -> T + Send + Sync,
+) -> Option<T> {
+    None
 }

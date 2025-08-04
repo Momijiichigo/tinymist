@@ -563,36 +563,47 @@ mod sys {
     }
 }
 
+// Add this after the Windows sys module, around line 600
 #[cfg(target_arch = "wasm32")]
 mod sys {
     use std::fs::File;
     use std::io::{Error, Result};
 
+    // WASM doesn't support file locking, so we provide no-op implementations
+    // that always succeed. This provides graceful fallback behavior.
+    
     pub(super) fn lock_shared(_file: &File) -> Result<()> {
+        // No-op: WASM runs in sandboxed environment, no file locking needed
         Ok(())
     }
 
     pub(super) fn lock_exclusive(_file: &File) -> Result<()> {
+        // No-op: WASM runs in sandboxed environment, no file locking needed
         Ok(())
     }
 
     pub(super) fn try_lock_shared(_file: &File) -> Result<()> {
+        // No-op: WASM runs in sandboxed environment, no file locking needed
         Ok(())
     }
 
     pub(super) fn try_lock_exclusive(_file: &File) -> Result<()> {
+        // No-op: WASM runs in sandboxed environment, no file locking needed
         Ok(())
     }
 
     pub(super) fn unlock(_file: &File) -> Result<()> {
+        // No-op: WASM runs in sandboxed environment, no file locking needed
         Ok(())
     }
 
     pub(super) fn error_contended(_err: &Error) -> bool {
+        // In WASM, we never have contention since locking is no-op
         false
     }
 
     pub(super) fn error_unsupported(_err: &Error) -> bool {
-        true
+        // WASM file operations are supported through the browser APIs
+        false
     }
 }

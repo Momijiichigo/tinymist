@@ -5,7 +5,6 @@ use std::sync::Arc;
 use cmark_writer::ast::{CustomNode, HtmlAttribute, HtmlElement as CmarkHtmlElement, Node};
 use cmark_writer::{CommonMarkWriter, WriteResult};
 use ecow::EcoString;
-#[cfg(not(target_arch = "wasm32"))]
 use tinymist_project::LspWorld;
 use typst::html::{tag, HtmlElement, HtmlNode};
 

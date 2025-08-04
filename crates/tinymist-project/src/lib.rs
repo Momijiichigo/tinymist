@@ -7,11 +7,11 @@ mod model;
 
 #[cfg(feature = "lsp")]
 mod lock;
-#[cfg(all(feature = "lsp", not(target_arch = "wasm32")))]
+#[cfg(feature = "lsp")]
 mod lsp;
-#[cfg(all(feature = "system", not(target_arch = "wasm32")))]
+#[cfg(feature = "system")]
 mod watch;
-#[cfg(all(feature = "system", not(target_arch = "wasm32")))]
+#[cfg(feature = "system")]
 pub mod world;
 
 pub use args::*;
@@ -19,13 +19,13 @@ pub use compiler::*;
 pub use entry::*;
 pub use model::*;
 
-#[cfg(all(feature = "lsp", not(target_arch = "wasm32")))]
+#[cfg(feature = "lsp")]
 pub use lock::*;
-#[cfg(all(feature = "lsp", not(target_arch = "wasm32")))]
+#[cfg(feature = "lsp")]
 pub use lsp::*;
-#[cfg(all(feature = "system", not(target_arch = "wasm32")))]
+#[cfg(feature = "system")]
 pub use watch::*;
-#[cfg(all(feature = "system", not(target_arch = "wasm32")))]
+#[cfg(feature = "system")]
 pub use world::*;
 
 pub use tinymist_world::{CompileSignal, CompileSnapshot, ProjectInsId};

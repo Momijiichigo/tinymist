@@ -23,12 +23,19 @@ impl PackFs for UniversePack {
         let spec = &self.specifier;
         assert_eq!(spec.namespace, "preview");
 
-        let url = format!(
-            "{DEFAULT_REGISTRY}/preview/{}-{}.tar.gz",
-            spec.name, spec.version
-        );
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let url = format!(
+                "{DEFAULT_REGISTRY}/preview/{}-{}.tar.gz",
+                spec.name, spec.version
+            );
 
-        HttpPack::new(self.specifier.clone(), url).read_all(f)
+            HttpPack::new(self.specifier.clone(), url).read_all(f)
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            Err(PackageError::Other(Some("Universe packages not supported in WASM".into())))
+        }
     }
 }
 

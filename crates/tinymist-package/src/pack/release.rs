@@ -18,12 +18,19 @@ impl PackFs for GitHubReleasePack {
         &mut self,
         f: &mut (dyn FnMut(&str, PackFile) -> PackageResult<()> + Send + Sync),
     ) -> PackageResult<()> {
-        let url = format!(
-            "https://api.github.com/repos/{}/releases/latest/{}",
-            self.repo, self.name,
-        );
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let url = format!(
+                "https://api.github.com/repos/{}/releases/latest/{}",
+                self.repo, self.name,
+            );
 
-        HttpPack::new(self.specifier.clone(), url).read_all(f)
+            HttpPack::new(self.specifier.clone(), url).read_all(f)
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            Err(PackageError::Other(Some("GitHub releases not supported in WASM".into())))
+        }
     }
 }
 

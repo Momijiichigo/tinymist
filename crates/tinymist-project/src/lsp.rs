@@ -6,8 +6,7 @@ use tinymist_std::{bail, ImmutPath};
 use tinymist_task::ExportTarget;
 use tinymist_world::config::CompileFontOpts;
 use tinymist_world::font::system::SystemFontSearcher;
-use tinymist_world::package::registry::BrowserRegistry;
-use tinymist_world::package::RegistryPathMapper;
+use tinymist_world::package::{registry::HttpRegistry, RegistryPathMapper};
 use tinymist_world::vfs::{system::SystemAccessModel, Vfs};
 use tinymist_world::{args::*, WorldComputeGraph};
 use tinymist_world::{
@@ -34,7 +33,7 @@ impl CompilerFeat for LspCompilerFeat {
     /// It accesses a physical file system.
     type AccessModel = DynAccessModel;
     /// It performs native HTTP requests for fetching package data.
-    type Registry = BrowserRegistry;
+    type Registry = HttpRegistry;
 }
 
 /// LSP universe that spawns LSP worlds.
@@ -65,7 +64,10 @@ impl WorldProvider for CompileOnceArgs {
         let entry = self.entry()?.try_into()?;
         let inputs = self.resolve_inputs().unwrap_or_default();
         let fonts = Arc::new(LspUniverseBuilder::resolve_fonts(self.font.clone())?);
-        let packages = LspUniverseBuilder::resolve_package(Some(&self.package));
+        let packages = LspUniverseBuilder::resolve_package(
+            self.cert.as_deref().map(From::from),
+            Some(&self.package),
+        );
 
         // todo: more export targets
         Ok(LspUniverseBuilder::build(
@@ -146,6 +148,8 @@ impl WorldProvider for (ProjectInput, ImmutPath) {
             ignore_system_fonts: !proj.system_fonts,
         })?;
         let packages = LspUniverseBuilder::resolve_package(
+            // todo: recover certificate path
+            None,
             Some(&CompilePackageArgs {
                 package_path: proj
                     .package_path
@@ -215,7 +219,7 @@ impl LspUniverseBuilder {
         export_target: ExportTarget,
         features: Features,
         inputs: ImmutDict,
-        package_registry: BrowserRegistry,
+        package_registry: HttpRegistry,
         font_resolver: Arc<FontResolverImpl>,
         creation_timestamp: Option<i64>,
         access_model: DynAccessModel,
@@ -265,9 +269,11 @@ impl LspUniverseBuilder {
 
     /// Resolve package registry from given options.
     pub fn resolve_package(
+        cert_path: Option<ImmutPath>,
         args: Option<&CompilePackageArgs>,
-    ) -> BrowserRegistry {
-        BrowserRegistry::new(
+    ) -> HttpRegistry {
+        HttpRegistry::new(
+            cert_path,
             args.and_then(|args| Some(args.package_path.clone()?.into())),
             args.and_then(|args| Some(args.package_cache_path.clone()?.into())),
         )

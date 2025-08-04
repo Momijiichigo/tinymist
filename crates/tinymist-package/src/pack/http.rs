@@ -1,11 +1,15 @@
+#[cfg(not(target_arch = "wasm32"))]
 use ecow::eco_format;
-use typst::diag::{PackageError, PackageResult};
+#[cfg(not(target_arch = "wasm32"))]
+use typst::diag::PackageError;
 
+#[cfg(not(target_arch = "wasm32"))]
 use super::*;
-#[cfg(all(feature = "http-registry", not(target_arch = "wasm32")))]
-use crate::registry::http::threaded_http;
+#[cfg(not(target_arch = "wasm32"))]
+use crate::registry::threaded_http;
 
 /// A package in the remote http.
+#[cfg(not(target_arch = "wasm32"))]
 #[derive(Clone)]
 pub struct HttpPack<S> {
     /// The package specifier.
@@ -14,6 +18,7 @@ pub struct HttpPack<S> {
     pub url: S,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl<S: AsRef<str>> HttpPack<S> {
     /// Creates a new `HttpPack` instance.
     pub fn new(specifier: PackageSpec, url: S) -> Self {
@@ -21,14 +26,15 @@ impl<S: AsRef<str>> HttpPack<S> {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl<S: AsRef<str>> fmt::Debug for HttpPack<S> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "HttpPack({})", self.url.as_ref())
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl<S: AsRef<str>> PackFs for HttpPack<S> {
-    #[cfg(all(feature = "http-registry", not(target_arch = "wasm32")))]
     fn read_all(
         &mut self,
         f: &mut (dyn FnMut(&str, PackFile) -> PackageResult<()> + Send + Sync),
@@ -47,19 +53,19 @@ impl<S: AsRef<str>> PackFs for HttpPack<S> {
             let decompressed = flate2::read::GzDecoder::new(reader);
             let mut tarbar = TarballPack::new(decompressed);
 
+            // .unpack(package_dir)
+            // .map_err(|err| {
+            //     std::fs::remove_dir_all(package_dir).ok();
+            //     PackageError::MalformedArchive(Some(eco_format!("{err}")))
+            // })
+
             tarbar.read_all(f)
         })
         .ok_or_else(|| PackageError::Other(Some(eco_format!("cannot spawn http thread"))))?
     }
-
-    #[cfg(not(all(feature = "http-registry", not(target_arch = "wasm32"))))]
-    fn read_all(
-        &mut self,
-        _f: &mut (dyn FnMut(&str, PackFile) -> PackageResult<()> + Send + Sync),
-    ) -> PackageResult<()> {
-        panic!("http-registry feature is not enabled or not supported on this target")
-    }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl<S: AsRef<str>> Pack for HttpPack<S> {}
+#[cfg(not(target_arch = "wasm32"))]
 impl<P: AsRef<str>> PackExt for HttpPack<P> {}

@@ -37,11 +37,11 @@ typst-assets.workspace = true
 notify.workspace = true
 
 [features]
-default = ["system"]
+
 fonts = ["typst-assets/fonts"]
 no-content-hint = ["tinymist-task/no-content-hint"]
 lsp = ["system", "toml"]
-browser = ["tinymist-std/web", "tinymist-world/browser"]
+
 system = ["tinymist-std/system", "tinymist-world/system"]
 
 [lints]

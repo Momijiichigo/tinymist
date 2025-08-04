@@ -7,9 +7,7 @@ use std::sync::{Arc, LazyLock};
 use base64::Engine;
 use cmark_writer::ast::{HtmlAttribute, HtmlElement as CmarkHtmlElement, Node};
 use ecow::{eco_format, EcoString};
-#[cfg(not(target_arch = "wasm32"))]
 use tinymist_project::system::print_diagnostics_to_string;
-#[cfg(not(target_arch = "wasm32"))]
 use tinymist_project::{base::ShadowApi, EntryReader, TaskInputs, MEMORY_MAIN_ENTRY};
 use typst::{
     foundations::{Bytes, Dict, IntoValue},
@@ -286,17 +284,13 @@ impl HtmlToAstParser {
             Ok(doc) => doc,
             Err(e) => {
                 let diag = doc.warnings.iter().chain(e.iter());
-                
-                #[cfg(not(target_arch = "wasm32"))]
+
                 let e = print_diagnostics_to_string(
                     &world,
                     diag,
                     tinymist_project::DiagnosticFormat::Human,
                 )
                 .unwrap_or_else(|e| e);
-                
-                #[cfg(target_arch = "wasm32")]
-                let e = format!("{:?}", e);
 
                 if self.feat.soft_error {
                     return Node::Text(eco_format!("Error compiling idoc: {e}"));

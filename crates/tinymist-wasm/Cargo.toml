@@ -27,8 +27,8 @@ lsp-types = { workspace = true }
 typst = { workspace = true }
 typst-shim = { workspace = true }
 tinymist-query = { workspace = true }
-tinymist-world = { workspace = true }
-tinymist-project = { workspace = true }
+tinymist-world = { workspace = true, default-features = false }
+tinymist-project = { workspace = true, default-features = false }
 ecow = { workspace = true }
 
 [features]

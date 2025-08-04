@@ -15,6 +15,7 @@ resolver = "2"
 members = ["benches/*", "crates/*", "tests"]
 
 [workspace.dependencies]
+
 # Basic Infra
 anyhow = "1"
 if_chain = "1"
@@ -25,8 +26,6 @@ strum = { version = "0.26.2", features = ["derive"] }
 quote = "1"
 syn = "2"
 triomphe = { version = "0.1.10", default-features = false, features = ["std"] }
-pollster = "0.3"
-
 
 # Asynchoronous and Multi-threading
 async-trait = "0.1.77"
@@ -69,7 +68,6 @@ reqwest = { version = "^0.12", default-features = false, features = [
     "rustls-tls",
     "blocking",
     "multipart",
-    "stream",
 ] }
 
 # Algorithms
@@ -82,7 +80,6 @@ siphasher = "1"
 fxhash = "0.2.1"
 sha2 = "0.10.6"
 nohash-hasher = "0.2.0"
-ehttp = { version = "0.5.0", default-features = false }
 fastrand = "2.3.0"
 
 # Data Structures
