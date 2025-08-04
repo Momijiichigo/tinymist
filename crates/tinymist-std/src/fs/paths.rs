@@ -314,7 +314,7 @@ pub fn bytes2path(bytes: &[u8]) -> Result<PathBuf> {
         use std::os::unix::prelude::*;
         Ok(PathBuf::from(OsStr::from_bytes(bytes)))
     }
-    #[cfg(any(windows, target_arch = "wasm32"))]
+    #[cfg(windows)]
     {
         use std::str;
         match str::from_utf8(bytes) {
