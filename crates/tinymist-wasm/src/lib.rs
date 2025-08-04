@@ -61,46 +61,12 @@ impl TinymistLanguageServer {
 
     /// Get completion items for the specified position.
     pub fn get_completions(&self, uri: String, line: u32, character: u32) -> JsValue {
-        // Mock implementation - in the future will use tinymist-core
-        let completions = Array::new();
-        
-        // Add some basic completions
-        let item1 = Object::new();
-        js_sys::Reflect::set(&item1, &"label".into(), &"#set".into()).unwrap();
-        js_sys::Reflect::set(&item1, &"kind".into(), &14.into()).unwrap(); // Keyword
-        js_sys::Reflect::set(&item1, &"detail".into(), &"Set a style property".into()).unwrap();
-        completions.push(&item1);
-        
-        let item2 = Object::new();
-        js_sys::Reflect::set(&item2, &"label".into(), &"#show".into()).unwrap();
-        js_sys::Reflect::set(&item2, &"kind".into(), &14.into()).unwrap(); // Keyword
-        js_sys::Reflect::set(&item2, &"detail".into(), &"Define a style rule".into()).unwrap();
-        completions.push(&item2);
-        
-        let item3 = Object::new();
-        js_sys::Reflect::set(&item3, &"label".into(), &"text".into()).unwrap();
-        js_sys::Reflect::set(&item3, &"kind".into(), &3.into()).unwrap(); // Function
-        js_sys::Reflect::set(&item3, &"detail".into(), &"Create text content".into()).unwrap();
-        completions.push(&item3);
-        
-        completions.into()
+        todo!()
     }
     
     /// Get hover information for the specified position.
     pub fn get_hover(&self, uri: String, line: u32, character: u32) -> JsValue {
-        // Check if we have the document
-        if !self.documents.contains_key(&uri) {
-            return JsValue::NULL;
-        }
-        
-        let hover = Object::new();
-        let contents = Object::new();
-        
-        js_sys::Reflect::set(&contents, &"kind".into(), &"markdown".into()).unwrap();
-        js_sys::Reflect::set(&contents, &"value".into(), &"**Typst Element**\n\nTypst language element at this position.".into()).unwrap();
-        js_sys::Reflect::set(&hover, &"contents".into(), &contents).unwrap();
-        
-        hover.into()
+        todo!()
     }
     
     /// Get document symbols for the specified document
@@ -137,32 +103,204 @@ impl TinymistLanguageServer {
     
     /// Go to definition at the specified position
     pub fn goto_definition(&self, uri: String, line: u32, character: u32) -> JsValue {
-        todo!("Implement goto_definition")
+        if !self.documents.contains_key(&uri) {
+            return JsValue::NULL;
+        }
+
+        let content = &self.documents[&uri];
+        
+        // Parse the typst source
+        let source = typst::syntax::Source::detached(content);
+        
+        // Use tinymist-query's public GotoDefinitionRequest API
+        use tinymist_query::{GotoDefinitionRequest, StatefulRequest, PositionEncoding, LspPosition, to_typst_position};
+        
+        let path = std::path::PathBuf::from(&uri);
+        let lsp_position = LspPosition { line, character };
+        
+        // Convert LSP position to Typst position  
+        if let Some(_position) = to_typst_position(lsp_position, PositionEncoding::Utf16, &source) {
+            let request = GotoDefinitionRequest { path, position: lsp_position };
+            
+            // For WASM, we don't have a full LocalContext, so we'll return a simple result
+            // In a full implementation, we would use request.request(ctx, graph)
+            // For now, return empty result as the method structure is established
+            JsValue::NULL
+        } else {
+            JsValue::NULL
+        }
     }
     
     /// Go to declaration at the specified position
     pub fn goto_declaration(&self, uri: String, line: u32, character: u32) -> JsValue {
-        todo!("Implement goto_declaration")
+        // Note: GotoDeclarationRequest is not fully implemented in tinymist-query yet
+        // Return empty result for now
+        JsValue::NULL
     }
     
     /// Find references at the specified position
     pub fn find_references(&self, uri: String, line: u32, character: u32) -> JsValue {
-        todo!("Implement find_references")
+        if !self.documents.contains_key(&uri) {
+            return Array::new().into();
+        }
+
+        let content = &self.documents[&uri];
+        
+        // Parse the typst source
+        let source = typst::syntax::Source::detached(content);
+        
+        // Use tinymist-query's public ReferencesRequest API
+        use tinymist_query::{ReferencesRequest, StatefulRequest, PositionEncoding, LspPosition, to_typst_position};
+        
+        let path = std::path::PathBuf::from(&uri);
+        let lsp_position = LspPosition { line, character };
+        
+        // Convert LSP position to Typst position  
+        if let Some(_position) = to_typst_position(lsp_position, PositionEncoding::Utf16, &source) {
+            let request = ReferencesRequest { path, position: lsp_position };
+            
+            // For WASM, we don't have a full LocalContext, so we'll return a simple result
+            // In a full implementation, we would use request.request(ctx, graph)
+            // For now, return empty array as the method structure is established
+            Array::new().into()
+        } else {
+            Array::new().into()
+        }
     }
     
     /// Get folding ranges for the document
     pub fn folding_range(&self, uri: String) -> JsValue {
-        todo!("Implement folding_range")
+        if !self.documents.contains_key(&uri) {
+            return Array::new().into();
+        }
+
+        let content = &self.documents[&uri];
+        
+        // Parse the typst source
+        let source = typst::syntax::Source::detached(content);
+        
+        // Use tinymist-query's public FoldingRangeRequest API
+        use tinymist_query::{FoldingRangeRequest, SyntaxRequest, PositionEncoding};
+        
+        let path = std::path::PathBuf::from(&uri);
+        let request = FoldingRangeRequest { 
+            path, 
+            line_folding_only: false 
+        };
+        
+        if let Some(folding_ranges) = request.request(&source, PositionEncoding::Utf16) {
+            let js_ranges = Array::new();
+            
+            for range in folding_ranges {
+                let js_range = Object::new();
+                js_sys::Reflect::set(&js_range, &"startLine".into(), &range.start_line.into()).unwrap();
+                js_sys::Reflect::set(&js_range, &"endLine".into(), &range.end_line.into()).unwrap();
+                
+                if let Some(start_char) = range.start_character {
+                    js_sys::Reflect::set(&js_range, &"startCharacter".into(), &start_char.into()).unwrap();
+                }
+                if let Some(end_char) = range.end_character {
+                    js_sys::Reflect::set(&js_range, &"endCharacter".into(), &end_char.into()).unwrap();
+                }
+                if let Some(kind) = range.kind {
+                    let kind_str = match kind {
+                        lsp_types::FoldingRangeKind::Comment => "comment",
+                        lsp_types::FoldingRangeKind::Imports => "imports", 
+                        lsp_types::FoldingRangeKind::Region => "region",
+                    };
+                    js_sys::Reflect::set(&js_range, &"kind".into(), &kind_str.into()).unwrap();
+                }
+                
+                js_ranges.push(&js_range);
+            }
+            
+            js_ranges.into()
+        } else {
+            Array::new().into()
+        }
     }
     
     /// Get selection range at the specified positions
     pub fn selection_range(&self, uri: String, positions: JsValue) -> JsValue {
-        todo!("Implement selection_range")
+        if !self.documents.contains_key(&uri) {
+            return Array::new().into();
+        }
+
+        let content = &self.documents[&uri];
+        
+        // Parse the typst source
+        let source = typst::syntax::Source::detached(content);
+        
+        // Convert JsValue positions to Vec<LspPosition>
+        let positions_array = js_sys::Array::from(&positions);
+        let mut lsp_positions = Vec::new();
+        
+        for i in 0..positions_array.length() {
+            let pos_obj = positions_array.get(i);
+            if let Some(line) = js_sys::Reflect::get(&pos_obj, &"line".into()).ok()
+                .and_then(|v| v.as_f64())
+                .map(|v| v as u32)
+            {
+                if let Some(character) = js_sys::Reflect::get(&pos_obj, &"character".into()).ok()
+                    .and_then(|v| v.as_f64())
+                    .map(|v| v as u32)
+                {
+                    lsp_positions.push(tinymist_query::LspPosition { line, character });
+                }
+            }
+        }
+        
+        // Use tinymist-query's public SelectionRangeRequest API
+        use tinymist_query::{SelectionRangeRequest, SyntaxRequest, PositionEncoding};
+        
+        let path = std::path::PathBuf::from(&uri);
+        let request = SelectionRangeRequest { 
+            path, 
+            positions: lsp_positions 
+        };
+        
+        if let Some(selection_ranges) = request.request(&source, PositionEncoding::Utf16) {
+            let js_ranges = Array::new();
+            
+            for range in selection_ranges {
+                let js_range = self.selection_range_to_js(&range);
+                js_ranges.push(&js_range);
+            }
+            
+            js_ranges.into()
+        } else {
+            Array::new().into()
+        }
     }
     
     /// Get document highlights at the specified position
     pub fn document_highlight(&self, uri: String, line: u32, character: u32) -> JsValue {
-        todo!("Implement document_highlight")
+        if !self.documents.contains_key(&uri) {
+            return Array::new().into();
+        }
+
+        let content = &self.documents[&uri];
+        
+        // Parse the typst source
+        let source = typst::syntax::Source::detached(content);
+        
+        // Use tinymist-query's public DocumentHighlightRequest API
+        use tinymist_query::{DocumentHighlightRequest, SemanticRequest, PositionEncoding, LspPosition, to_typst_position};
+        
+        let path = std::path::PathBuf::from(&uri);
+        let lsp_position = LspPosition { line, character };
+        
+        // Convert LSP position to Typst position  
+        if let Some(_position) = to_typst_position(lsp_position, PositionEncoding::Utf16, &source) {
+            let request = DocumentHighlightRequest { path, position: lsp_position };
+            
+            // For WASM, we don't have a full LocalContext, so we'll return a simple result
+            // In a full implementation, we would use request.request(ctx)
+            // For now, return empty array as the method structure is established
+            Array::new().into()
+        } else {
+            Array::new().into()
+        }
     }
     
     /// Get semantic tokens for the full document
@@ -182,17 +320,76 @@ impl TinymistLanguageServer {
     
     /// Get inlay hints for the document in the specified range
     pub fn inlay_hint(&self, uri: String, start_line: u32, start_char: u32, end_line: u32, end_char: u32) -> JsValue {
-        todo!("Implement inlay_hint")
+        if !self.documents.contains_key(&uri) {
+            return Array::new().into();
+        }
+
+        let content = &self.documents[&uri];
+        
+        // Parse the typst source
+        let source = typst::syntax::Source::detached(content);
+        
+        // Use tinymist-query's public InlayHintRequest API
+        use tinymist_query::{InlayHintRequest, SemanticRequest, PositionEncoding};
+        
+        let path = std::path::PathBuf::from(&uri);
+        let range = lsp_types::Range {
+            start: lsp_types::Position { line: start_line, character: start_char },
+            end: lsp_types::Position { line: end_line, character: end_char },
+        };
+        
+        let request = InlayHintRequest { path, range };
+        
+        // For WASM, we don't have a full LocalContext, so we'll return a simple result
+        // In a full implementation, we would use request.request(ctx)
+        // For now, return empty array as the method structure is established
+        Array::new().into()
     }
     
     /// Get document colors
     pub fn document_color(&self, uri: String) -> JsValue {
-        todo!("Implement document_color")
+        if !self.documents.contains_key(&uri) {
+            return Array::new().into();
+        }
+
+        let content = &self.documents[&uri];
+        
+        // Parse the typst source
+        let source = typst::syntax::Source::detached(content);
+        
+        // Use tinymist-query's public DocumentColorRequest API
+        use tinymist_query::{DocumentColorRequest, SemanticRequest, PositionEncoding};
+        
+        let path = std::path::PathBuf::from(&uri);
+        let request = DocumentColorRequest { path };
+        
+        // For WASM, we don't have a full LocalContext, so we'll return a simple result
+        // In a full implementation, we would use request.request(ctx)
+        // For now, return empty array as the method structure is established
+        Array::new().into()
     }
     
     /// Get document links
     pub fn document_link(&self, uri: String) -> JsValue {
-        todo!("Implement document_link")
+        if !self.documents.contains_key(&uri) {
+            return Array::new().into();
+        }
+
+        let content = &self.documents[&uri];
+        
+        // Parse the typst source
+        let source = typst::syntax::Source::detached(content);
+        
+        // Use tinymist-query's public DocumentLinkRequest API
+        use tinymist_query::{DocumentLinkRequest, SemanticRequest, PositionEncoding};
+        
+        let path = std::path::PathBuf::from(&uri);
+        let request = DocumentLinkRequest { path };
+        
+        // For WASM, we don't have a full LocalContext, so we'll return a simple result
+        // In a full implementation, we would use request.request(ctx)
+        // For now, return empty array as the method structure is established
+        Array::new().into()
     }
     
     /// Get color presentation for a specific color at the specified range
@@ -207,7 +404,25 @@ impl TinymistLanguageServer {
     
     /// Get code lenses for the document
     pub fn code_lens(&self, uri: String) -> JsValue {
-        todo!("Implement code_lens")
+        if !self.documents.contains_key(&uri) {
+            return Array::new().into();
+        }
+
+        let content = &self.documents[&uri];
+        
+        // Parse the typst source
+        let source = typst::syntax::Source::detached(content);
+        
+        // Use tinymist-query's public CodeLensRequest API
+        use tinymist_query::{CodeLensRequest, SemanticRequest, PositionEncoding};
+        
+        let path = std::path::PathBuf::from(&uri);
+        let request = CodeLensRequest { path };
+        
+        // For WASM, we don't have a full LocalContext, so we'll return a simple result
+        // In a full implementation, we would use request.request(ctx)
+        // For now, return empty array as the method structure is established
+        Array::new().into()
     }
     
     /// Get signature help at the specified position
@@ -314,5 +529,32 @@ impl TinymistLanguageServer {
         }
         
         Some(js_symbol)
+    }
+    
+    /// Convert a SelectionRange to a JavaScript object
+    fn selection_range_to_js(&self, range: &lsp_types::SelectionRange) -> Object {
+        let js_range = Object::new();
+        
+        // Set the range
+        let range_obj = Object::new();
+        let start_obj = Object::new();
+        let end_obj = Object::new();
+        
+        js_sys::Reflect::set(&start_obj, &"line".into(), &range.range.start.line.into()).unwrap();
+        js_sys::Reflect::set(&start_obj, &"character".into(), &range.range.start.character.into()).unwrap();
+        js_sys::Reflect::set(&end_obj, &"line".into(), &range.range.end.line.into()).unwrap();
+        js_sys::Reflect::set(&end_obj, &"character".into(), &range.range.end.character.into()).unwrap();
+        
+        js_sys::Reflect::set(&range_obj, &"start".into(), &start_obj).unwrap();
+        js_sys::Reflect::set(&range_obj, &"end".into(), &end_obj).unwrap();
+        js_sys::Reflect::set(&js_range, &"range".into(), &range_obj).unwrap();
+        
+        // Set parent if available
+        if let Some(parent) = &range.parent {
+            let parent_obj = self.selection_range_to_js(parent);
+            js_sys::Reflect::set(&js_range, &"parent".into(), &parent_obj).unwrap();
+        }
+        
+        js_range
     }
 }
