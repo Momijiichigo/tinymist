@@ -20,7 +20,6 @@ dirs.workspace = true
 ecow.workspace = true
 log.workspace = true
 parking_lot.workspace = true
-tokio = { workspace = true, features = ["sync"] }
 rayon.workspace = true
 rpds.workspace = true
 semver.workspace = true
@@ -36,7 +35,11 @@ typst.workspace = true
 typst-assets.workspace = true
 notify.workspace = true
 
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+tokio = { workspace = true, features = ["sync"] }
+
 [features]
+default = ["system"]
 
 fonts = ["typst-assets/fonts"]
 no-content-hint = ["tinymist-task/no-content-hint"]

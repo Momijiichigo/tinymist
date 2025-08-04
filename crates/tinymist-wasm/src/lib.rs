@@ -7,6 +7,7 @@
 use std::collections::HashMap;
 use wasm_bindgen::prelude::*;
 use js_sys::{Array, Object};
+use lsp_types::{DocumentSymbol, DocumentSymbolResponse};
 
 /// Initialize panic hook for better error messages in the browser console
 #[wasm_bindgen(start)]
@@ -112,21 +113,26 @@ impl TinymistLanguageServer {
         
         // Parse the typst source and extract symbols
         let source = typst::syntax::Source::detached(content);
-        let root = source.root();
         
-        // Use tinymist-query's syntax analysis to extract symbols
-        use tinymist_query::syntax::{get_lexical_hierarchy, LexicalHierarchy, LexicalScopeKind};
+        // Use tinymist-query's public DocumentSymbolRequest API
+        use tinymist_query::{DocumentSymbolRequest, SyntaxRequest, PositionEncoding};
         
-        let hierarchy = get_lexical_hierarchy(root, None);
-        let symbols = Array::new();
+        let path = std::path::PathBuf::from(&uri);
+        let request = DocumentSymbolRequest { path };
         
-        for item in hierarchy {
-            if let Some(symbol_obj) = self.hierarchy_to_symbol(&item, &uri) {
-                symbols.push(&symbol_obj);
+        if let Some(DocumentSymbolResponse::Nested(symbols)) = request.request(&source, PositionEncoding::Utf16) {
+            let js_symbols = Array::new();
+            
+            for symbol in symbols {
+                if let Some(symbol_obj) = self.document_symbol_to_js(&symbol) {
+                    js_symbols.push(&symbol_obj);
+                }
             }
+            
+            js_symbols.into()
+        } else {
+            Array::new().into()
         }
-        
-        symbols.into()
     }
     
     /// Go to definition at the specified position
@@ -236,64 +242,77 @@ impl TinymistLanguageServer {
     
     // Helper methods
     
-    /// Convert a LexicalHierarchy item to a DocumentSymbol object
-    fn hierarchy_to_symbol(&self, item: &tinymist_query::syntax::LexicalHierarchy, uri: &str) -> Option<Object> {
-        use tinymist_query::syntax::{LexicalKind, LexicalScopeKind, LexicalVarKind};
-        
-        let symbol = Object::new();
+    /// Convert a DocumentSymbol to a JavaScript object
+    fn document_symbol_to_js(&self, symbol: &DocumentSymbol) -> Option<Object> {
+        let js_symbol = Object::new();
         
         // Set the name
-        let name = match &item.info.name {
-            Some(name) => name.clone(),
-            None => return None,
+        js_sys::Reflect::set(&js_symbol, &"name".into(), &symbol.name.clone().into()).ok()?;
+        
+        // Set the kind (using LSP SymbolKind numbers)
+        let kind_num: u32 = match symbol.kind {
+            lsp_types::SymbolKind::FILE => 1,
+            lsp_types::SymbolKind::MODULE => 2,
+            lsp_types::SymbolKind::NAMESPACE => 3,
+            lsp_types::SymbolKind::PACKAGE => 4,
+            lsp_types::SymbolKind::CLASS => 5,
+            lsp_types::SymbolKind::METHOD => 6,
+            lsp_types::SymbolKind::PROPERTY => 7,
+            lsp_types::SymbolKind::FIELD => 8,
+            lsp_types::SymbolKind::CONSTRUCTOR => 9,
+            lsp_types::SymbolKind::ENUM => 10,
+            lsp_types::SymbolKind::INTERFACE => 11,
+            lsp_types::SymbolKind::FUNCTION => 12,
+            lsp_types::SymbolKind::VARIABLE => 13,
+            lsp_types::SymbolKind::CONSTANT => 14,
+            lsp_types::SymbolKind::STRING => 15,
+            lsp_types::SymbolKind::NUMBER => 16,
+            lsp_types::SymbolKind::BOOLEAN => 17,
+            lsp_types::SymbolKind::ARRAY => 18,
+            lsp_types::SymbolKind::OBJECT => 19,
+            lsp_types::SymbolKind::KEY => 20,
+            lsp_types::SymbolKind::NULL => 21,
+            lsp_types::SymbolKind::ENUM_MEMBER => 22,
+            lsp_types::SymbolKind::STRUCT => 23,
+            lsp_types::SymbolKind::EVENT => 24,
+            lsp_types::SymbolKind::OPERATOR => 25,
+            lsp_types::SymbolKind::TYPE_PARAMETER => 26,
+            _ => 13, // Default to VARIABLE for unknown kinds
         };
-        js_sys::Reflect::set(&symbol, &"name".into(), &name.into()).ok()?;
+        js_sys::Reflect::set(&js_symbol, &"kind".into(), &kind_num.into()).ok()?;
         
-        // Set the kind based on the lexical kind
-        let kind = match &item.info.kind {
-            LexicalKind::Scope(scope_kind) => match scope_kind {
-                LexicalScopeKind::Function => 12, // Function
-                _ => 13, // Variable
-            },
-            LexicalKind::Var(var_kind) => match var_kind {
-                LexicalVarKind::Function => 12, // Function
-                LexicalVarKind::Variable => 13, // Variable
-                LexicalVarKind::Constant => 14, // Constant
-            },
-            _ => 13, // Default to Variable
-        };
-        js_sys::Reflect::set(&symbol, &"kind".into(), &kind.into()).ok()?;
+        // Set the range
+        let range_obj = Object::new();
+        let start_obj = Object::new();
+        let end_obj = Object::new();
         
-        // Set range (simplified - we'd need proper position conversion in a full implementation)
-        let range = Object::new();
-        let start = Object::new();
-        let end = Object::new();
+        js_sys::Reflect::set(&start_obj, &"line".into(), &symbol.range.start.line.into()).ok()?;
+        js_sys::Reflect::set(&start_obj, &"character".into(), &symbol.range.start.character.into()).ok()?;
+        js_sys::Reflect::set(&end_obj, &"line".into(), &symbol.range.end.line.into()).ok()?;
+        js_sys::Reflect::set(&end_obj, &"character".into(), &symbol.range.end.character.into()).ok()?;
         
-        // Set start position (0,0 for now)
-        js_sys::Reflect::set(&start, &"line".into(), &0.into()).ok()?;
-        js_sys::Reflect::set(&start, &"character".into(), &0.into()).ok()?;
+        js_sys::Reflect::set(&range_obj, &"start".into(), &start_obj).ok()?;
+        js_sys::Reflect::set(&range_obj, &"end".into(), &end_obj).ok()?;
         
-        // Set end position (0,0 for now)
-        js_sys::Reflect::set(&end, &"line".into(), &0.into()).ok()?;
-        js_sys::Reflect::set(&end, &"character".into(), &0.into()).ok()?;
+        js_sys::Reflect::set(&js_symbol, &"range".into(), &range_obj).ok()?;
+        js_sys::Reflect::set(&js_symbol, &"selectionRange".into(), &range_obj).ok()?;
         
-        js_sys::Reflect::set(&range, &"start".into(), &start).ok()?;
-        js_sys::Reflect::set(&range, &"end".into(), &end).ok()?;
-        
-        js_sys::Reflect::set(&symbol, &"range".into(), &range).ok()?;
-        js_sys::Reflect::set(&symbol, &"selectionRange".into(), &range).ok()?;
-        
-        // Add children if any
-        if !item.children.is_empty() {
-            let children = Array::new();
-            for child in &item.children {
-                if let Some(child_symbol) = self.hierarchy_to_symbol(child, uri) {
-                    children.push(&child_symbol);
-                }
-            }
-            js_sys::Reflect::set(&symbol, &"children".into(), &children).ok()?;
+        // Set detail if available
+        if let Some(detail) = &symbol.detail {
+            js_sys::Reflect::set(&js_symbol, &"detail".into(), &detail.clone().into()).ok()?;
         }
         
-        Some(symbol)
+        // Set children if available
+        if let Some(children) = &symbol.children {
+            let js_children = Array::new();
+            for child in children {
+                if let Some(child_obj) = self.document_symbol_to_js(child) {
+                    js_children.push(&child_obj);
+                }
+            }
+            js_sys::Reflect::set(&js_symbol, &"children".into(), &js_children).ok()?;
+        }
+        
+        Some(js_symbol)
     }
 }

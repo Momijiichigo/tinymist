@@ -396,6 +396,11 @@ impl HttpRegistry {
     pub fn package_cache_path(&self) -> Option<&ImmutPath> {
         None
     }
+
+    /// Get all package paths
+    pub fn paths(&self) -> Vec<ImmutPath> {
+        Vec::new()
+    }
 }
 
 #[cfg(target_arch = "wasm32")]

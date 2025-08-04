@@ -91,7 +91,7 @@ pub fn list_package_by_namespace(
         "searching for packages in namespace {ns} in paths {:?}",
         registry.paths()
     );
-    for dir in registry.paths() {
+    for dir in &registry.paths() {
         let local_path = dir.join(ns.as_str());
         if !local_path.exists() || !local_path.is_dir_follow_links() {
             continue;

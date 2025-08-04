@@ -18,7 +18,13 @@ use tinymist_world::{
     EntryState, FlagTask, HtmlCompilationTask, PagedCompilationTask, ProjectInsId, TaskInputs,
     WorldComputeGraph, WorldDeps,
 };
+#[cfg(all(feature = "system", not(target_arch = "wasm32")))]
 use tokio::sync::mpsc;
+
+#[cfg(all(feature = "system", not(target_arch = "wasm32")))]
+type DepSender = mpsc::UnboundedSender<NotifyMessage>;
+#[cfg(not(all(feature = "system", not(target_arch = "wasm32"))))]
+type DepSender = ();  // Dummy type for WASM
 
 /// A compiled artifact.
 pub struct CompiledArtifact<F: CompilerFeat> {
@@ -322,7 +328,7 @@ pub struct ProjectCompiler<F: CompilerFeat, Ext> {
     /// Specifies the current export target.
     export_target: ExportTarget,
     /// Channel for sending interrupts to the compiler actor.
-    dep_tx: mpsc::UnboundedSender<NotifyMessage>,
+    dep_tx: DepSender,
     /// Whether to ignore the first sync event.
     pub ignore_first_sync: bool,
 
@@ -345,7 +351,7 @@ impl<F: CompilerFeat + Send + Sync + 'static, Ext: Default + 'static> ProjectCom
     /// Creates a compiler with options
     pub fn new(
         verse: CompilerUniverse<F>,
-        dep_tx: mpsc::UnboundedSender<NotifyMessage>,
+        dep_tx: DepSender,
         CompileServerOpts {
             handler,
             ignore_first_sync,
@@ -464,10 +470,13 @@ impl<F: CompilerFeat + Send + Sync + 'static, Ext: Default + 'static> ProjectCom
             let _proj = self.dedicates.remove(idx);
             // todo: kill compilations
 
-            let res = self
-                .dep_tx
-                .send(NotifyMessage::SyncDependency(Box::new(self.deps.clone())));
-            log_send_error("dep_tx", res);
+            #[cfg(all(feature = "system", not(target_arch = "wasm32")))]
+            {
+                let res = self
+                    .dep_tx
+                    .send(NotifyMessage::SyncDependency(Box::new(self.deps.clone())));
+                log_send_error("dep_tx", res);
+            }
         } else {
             log::warn!("ProjectCompiler: settle project not found {id:?}");
         }
@@ -503,9 +512,12 @@ impl<F: CompilerFeat + Send + Sync + 'static, Ext: Default + 'static> ProjectCom
                         .project_deps
                         .insert_mut(proj.id.clone(), proj.deps.clone());
 
-                    let event = NotifyMessage::SyncDependency(Box::new(self.deps.clone()));
-                    let err = self.dep_tx.send(event);
-                    log_send_error("dep_tx", err);
+                    #[cfg(all(feature = "system", not(target_arch = "wasm32")))]
+                    {
+                        let event = NotifyMessage::SyncDependency(Box::new(self.deps.clone()));
+                        let err = self.dep_tx.send(event);
+                        log_send_error("dep_tx", err);
+                    }
                 }
             }
             Interrupt::Settle(id) => {
@@ -621,8 +633,11 @@ impl<F: CompilerFeat + Send + Sync + 'static, Ext: Default + 'static> ProjectCom
                         event,
                     }),
                 });
-                let err = self.dep_tx.send(event);
-                log_send_error("dep_tx", err);
+                #[cfg(all(feature = "system", not(target_arch = "wasm32")))]
+                {
+                    let err = self.dep_tx.send(event);
+                    log_send_error("dep_tx", err);
+                }
             }
             Interrupt::Fs(event) => {
                 log::debug!("ProjectCompiler: fs event incoming {event:?}");
@@ -888,6 +903,7 @@ fn log_compile_report(rep: &CompileReport) {
 }
 
 #[inline]
+#[cfg(all(feature = "system", not(target_arch = "wasm32")))]
 fn log_send_error<T>(chan: &'static str, res: Result<(), mpsc::error::SendError<T>>) -> bool {
     res.map_err(|err| log::warn!("ProjectCompiler: send to {chan} error: {err}"))
         .is_ok()

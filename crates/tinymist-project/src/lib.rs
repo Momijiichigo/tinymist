@@ -9,7 +9,7 @@ mod model;
 mod lock;
 #[cfg(feature = "lsp")]
 mod lsp;
-#[cfg(feature = "system")]
+#[cfg(all(feature = "system", not(target_arch = "wasm32")))]
 mod watch;
 #[cfg(feature = "system")]
 pub mod world;
@@ -23,7 +23,7 @@ pub use model::*;
 pub use lock::*;
 #[cfg(feature = "lsp")]
 pub use lsp::*;
-#[cfg(feature = "system")]
+#[cfg(all(feature = "system", not(target_arch = "wasm32")))]
 pub use watch::*;
 #[cfg(feature = "system")]
 pub use world::*;
