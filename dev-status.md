@@ -29,11 +29,17 @@
    * Implemented `worker.ts` as a web worker that sets up a basic language server connection.
    * Added proper package.json configuration for the npm package.
 
+3. **Enhanced LSP Features:**
+   * Expanded the Rust WASM interface to provide basic LSP functionality.
+   * Implemented completion, hover, and document symbol providers.
+   * Connected the TypeScript worker with the WASM language server implementation.
+
 **What we now have:**
 
-* A working `tinymist-wasm` crate that compiles to WebAssembly.
+* A working `tinymist-wasm` crate that compiles to WebAssembly with basic LSP capabilities.
 * A TypeScript/JavaScript wrapper that integrates with Monaco Editor.
-* A minimal language server implementation with basic features like completion and hover.
+* A functional language server implementation with essential features like completion, hover, and document symbols.
+* Documentation and development guidelines for WASM integration.
 
 ## Next Steps
 

@@ -3,97 +3,450 @@ import {
     BrowserMessageReader,
     BrowserMessageWriter,
     TextDocuments,
-    CompletionItem,
-    CompletionItemKind,
     TextDocumentSyncKind,
-    InitializeResult
+    InitializeResult,
+    DocumentSymbolParams,
+    ReferenceParams,
+    DefinitionParams,
+    FoldingRangeParams,
+    SelectionRangeParams,
+    DocumentHighlightParams,
+    SemanticTokensParams,
+    SemanticTokensDeltaParams,
+    DocumentFormattingParams,
+    InlayHintParams,
+    DocumentColorParams,
+    DocumentLinkParams,
+    ColorPresentationParams,
+    CodeActionParams,
+    CodeLensParams,
+    CompletionParams,
+    SignatureHelpParams,
+    RenameParams,
+    Position,
+    TextDocumentPositionParams
 } from 'vscode-languageserver/browser';
 
 import { TextDocument } from 'vscode-languageserver-textdocument';
-// We need to import the WASM module
-// This will be implemented properly once we have the full WASM build
-import * as wasmModule from "./pkg/tinymist_wasm";
+// Import the WASM module
+import { TinymistLanguageServer } from "./pkg/tinymist_wasm";
 
-// In a real implementation, we would initialize the WASM module
-// For now, we'll just create a basic language server
+// Initialize WASM and create language server instance
+let server: TinymistLanguageServer;
 
-console.log('Language server worker running...');
-console.log('Tinymist WASM language server stub loaded');
-
+// Create a connection for the server
 const reader = new BrowserMessageReader(self as any);
 const writer = new BrowserMessageWriter(self as any);
 const connection = createConnection(reader, writer);
 
+// Create a document manager
 const documents = new TextDocuments(TextDocument);
 
-// Store document contents
-const documentContents = new Map<string, string>();
+console.log('Language server worker starting...');
+
+// Initialize the server
+server = new TinymistLanguageServer();
+console.log(`Tinymist WASM language server v${server.version()} initialized`);
+console.log(server.greet());
 
 connection.onInitialize((_params) => {
-    // Basic server capabilities
+    // Define server capabilities
     const capabilities = {
         textDocumentSync: TextDocumentSyncKind.Incremental,
         completionProvider: {
             resolveProvider: false,
-            triggerCharacters: ['.', '#', '@']
+            triggerCharacters: ['.', '#', '@', '=', ':', ',', '(', '[', '{']
         },
-        hoverProvider: true
+        hoverProvider: true,
+        documentSymbolProvider: true,
+        definitionProvider: true,
+        declarationProvider: true,
+        referencesProvider: true,
+        documentHighlightProvider: true,
+        documentFormattingProvider: true,
+        documentRangeFormattingProvider: true,
+        foldingRangeProvider: true,
+        selectionRangeProvider: true,
+        semanticTokensProvider: {
+            full: true,
+            range: false,
+            legend: {
+                tokenTypes: [
+                    'comment', 'string', 'keyword', 'number', 'regexp', 'operator', 
+                    'namespace', 'type', 'struct', 'class', 'interface', 'enum',
+                    'typeParameter', 'function', 'method', 'decorator', 'macro',
+                    'variable', 'parameter', 'property', 'label'
+                ],
+                tokenModifiers: [
+                    'declaration', 'definition', 'readonly', 'static', 'deprecated',
+                    'abstract', 'async', 'modification', 'documentation', 'defaultLibrary'
+                ]
+            }
+        },
+        colorProvider: true,
+        documentLinkProvider: {
+            resolveProvider: false
+        },
+        codeActionProvider: {
+            codeActionKinds: ['quickfix', 'refactor', 'source']
+        },
+        codeLensProvider: {
+            resolveProvider: false
+        },
+        renameProvider: {
+            prepareProvider: true
+        },
+        inlayHintProvider: true,
+        workspaceSymbolProvider: true
     };
     
     return {
         capabilities,
         serverInfo: {
             name: "Tinymist Language Server",
-            version: "0.1.0" // This would come from the WASM module
+            version: server.version()
         }
     } as InitializeResult;
 });
 
 // Document management
 documents.onDidOpen(event => {
-    documentContents.set(event.document.uri, event.document.getText());
+    const document = event.document;
+    server.update_document(document.uri, document.getText());
 });
 
 documents.onDidChangeContent(change => {
-    documentContents.set(change.document.uri, change.document.getText());
+    const document = change.document;
+    server.update_document(document.uri, document.getText());
 });
 
 documents.onDidClose(event => {
-    documentContents.delete(event.document.uri);
+    server.remove_document(event.document.uri);
 });
 
-// Implement basic completion
-connection.onCompletion((_textDocumentPosition) => {
-    // Simple completion items for now
-    return [
-        {
-            label: '#set',
-            kind: CompletionItemKind.Keyword,
-            detail: 'Set a style property'
-        },
-        {
-            label: '#show',
-            kind: CompletionItemKind.Keyword,
-            detail: 'Define a style rule'
-        },
-        {
-            label: 'text',
-            kind: CompletionItemKind.Function,
-            detail: 'Create text content'
-        }
-    ];
+// Handle completion requests
+connection.onCompletion((textDocumentPosition) => {
+    try {
+        const completions = server.get_completions(
+            textDocumentPosition.textDocument.uri,
+            textDocumentPosition.position.line,
+            textDocumentPosition.position.character
+        );
+        return completions as any[];
+    } catch (e) {
+        console.error('Completion error:', e);
+        return [];
+    }
 });
 
-// Implement basic hover
-connection.onHover((_params) => {
-    return {
-        contents: {
-            kind: 'markdown',
-            value: '**Typst Element**\n\nThis is a placeholder hover text.'
-        }
-    };
+// Handle hover requests
+connection.onHover((params) => {
+    try {
+        return server.get_hover(
+            params.textDocument.uri,
+            params.position.line,
+            params.position.character
+        );
+    } catch (e) {
+        console.error('Hover error:', e);
+        return null;
+    }
+});
+
+// Handle document symbols
+connection.onDocumentSymbol((params: DocumentSymbolParams) => {
+    try {
+        return server.get_document_symbols(params.textDocument.uri) as any[];
+    } catch (e) {
+        console.error('Document symbols error:', e);
+        return [];
+    }
+});
+
+// Go to definition
+connection.onDefinition((params: DefinitionParams) => {
+    try {
+        return server.goto_definition(
+            params.textDocument.uri,
+            params.position.line,
+            params.position.character
+        );
+    } catch (e) {
+        console.error('Definition error:', e);
+        return null;
+    }
+});
+
+// Go to declaration
+connection.onDeclaration((params) => {
+    try {
+        return server.goto_declaration(
+            params.textDocument.uri,
+            params.position.line,
+            params.position.character
+        );
+    } catch (e) {
+        console.error('Declaration error:', e);
+        return null;
+    }
+});
+
+// Find references
+connection.onReferences((params: ReferenceParams) => {
+    try {
+        return server.find_references(
+            params.textDocument.uri,
+            params.position.line,
+            params.position.character
+        );
+    } catch (e) {
+        console.error('References error:', e);
+        return [];
+    }
+});
+
+// Folding ranges
+connection.onFoldingRanges((params: FoldingRangeParams) => {
+    try {
+        return server.folding_range(params.textDocument.uri);
+    } catch (e) {
+        console.error('Folding range error:', e);
+        return [];
+    }
+});
+
+// Selection ranges
+connection.onSelectionRanges((params) => {
+    try {
+        // Convert positions to a format the WASM module can understand
+        return server.selection_range(
+            params.textDocument.uri,
+            params.positions
+        );
+    } catch (e) {
+        console.error('Selection range error:', e);
+        return [];
+    }
+});
+
+// Document highlights
+connection.onDocumentHighlight((params: DocumentHighlightParams) => {
+    try {
+        return server.document_highlight(
+            params.textDocument.uri,
+            params.position.line,
+            params.position.character
+        );
+    } catch (e) {
+        console.error('Document highlight error:', e);
+        return [];
+    }
+});
+
+// Semantic tokens
+connection.onRequest('textDocument/semanticTokens/full', (params: SemanticTokensParams) => {
+    try {
+        return server.semantic_tokens_full(params.textDocument.uri);
+    } catch (e) {
+        console.error('Semantic tokens error:', e);
+        return null;
+    }
+});
+
+// Semantic tokens delta
+connection.onRequest('textDocument/semanticTokens/range', () => null); // Not implemented yet
+connection.onRequest('textDocument/semanticTokens/full/delta', (params: SemanticTokensDeltaParams) => {
+    try {
+        return server.semantic_tokens_delta(
+            params.textDocument.uri,
+            params.previousResultId
+        );
+    } catch (e) {
+        console.error('Semantic tokens delta error:', e);
+        return null;
+    }
+});
+
+// Document formatting
+connection.onDocumentFormatting((params: DocumentFormattingParams) => {
+    try {
+        return server.formatting(params.textDocument.uri);
+    } catch (e) {
+        console.error('Document formatting error:', e);
+        return [];
+    }
+});
+
+// Inlay hints
+connection.onRequest('textDocument/inlayHint', (params: InlayHintParams) => {
+    try {
+        return server.inlay_hint(
+            params.textDocument.uri,
+            params.range.start.line,
+            params.range.start.character,
+            params.range.end.line,
+            params.range.end.character
+        );
+    } catch (e) {
+        console.error('Inlay hint error:', e);
+        return [];
+    }
+});
+
+// Document colors
+connection.onDocumentColor((params: DocumentColorParams) => {
+    try {
+        return server.document_color(params.textDocument.uri);
+    } catch (e) {
+        console.error('Document color error:', e);
+        return [];
+    }
+});
+
+// Document links
+connection.onDocumentLinks((params: DocumentLinkParams) => {
+    try {
+        return server.document_link(params.textDocument.uri);
+    } catch (e) {
+        console.error('Document link error:', e);
+        return [];
+    }
+});
+
+// Color presentations
+connection.onColorPresentation((params: ColorPresentationParams) => {
+    try {
+        return server.color_presentation(
+            params.textDocument.uri,
+            params.color,
+            params.range.start.line,
+            params.range.start.character,
+            params.range.end.line,
+            params.range.end.character
+        );
+    } catch (e) {
+        console.error('Color presentation error:', e);
+        return [];
+    }
+});
+
+// Code actions
+connection.onCodeAction((params: CodeActionParams) => {
+    try {
+        return server.code_action(
+            params.textDocument.uri,
+            params.range.start.line,
+            params.range.start.character,
+            params.range.end.line,
+            params.range.end.character,
+            params.context
+        );
+    } catch (e) {
+        console.error('Code action error:', e);
+        return [];
+    }
+});
+
+// Code lenses
+connection.onCodeLens((params) => {
+    try {
+        return server.code_lens(params.textDocument.uri);
+    } catch (e) {
+        console.error('Code lens error:', e);
+        return [];
+    }
+});
+
+// Signature help
+connection.onSignatureHelp((params) => {
+    try {
+        return server.signature_help(
+            params.textDocument.uri,
+            params.position.line,
+            params.position.character
+        );
+    } catch (e) {
+        console.error('Signature help error:', e);
+        return null;
+    }
+});
+
+// Rename
+connection.onRenameRequest((params: RenameParams) => {
+    try {
+        return server.rename(
+            params.textDocument.uri,
+            params.position.line,
+            params.position.character,
+            params.newName
+        );
+    } catch (e) {
+        console.error('Rename error:', e);
+        return null;
+    }
+});
+
+// Prepare rename
+connection.onPrepareRename((params: TextDocumentPositionParams) => {
+    try {
+        return server.prepare_rename(
+            params.textDocument.uri,
+            params.position.line,
+            params.position.character
+        );
+    } catch (e) {
+        console.error('Prepare rename error:', e);
+        return null;
+    }
+});
+
+// Workspace symbols
+connection.onWorkspaceSymbol((params) => {
+    try {
+        return server.symbol(params.query);
+    } catch (e) {
+        console.error('Workspace symbol error:', e);
+        return [];
+    }
+});
+
+// Custom "onEnter" handler
+connection.onRequest('experimental/onEnter', (params: any) => {
+    try {
+        return server.on_enter(
+            params.textDocument.uri,
+            params.range.start.line,
+            params.range.start.character,
+            params.range.end.line,
+            params.range.end.character
+        );
+    } catch (e) {
+        console.error('OnEnter error:', e);
+        return null;
+    }
+});
+
+// Will rename files
+connection.onRequest('workspace/willRenameFiles', (params: any) => {
+    try {
+        return server.will_rename_files(params.files);
+    } catch (e) {
+        console.error('Will rename files error:', e);
+        return null;
+    }
+});
+
+// Handle document diagnostics
+documents.onDidChangeContent((change) => {
+    // In the future, we would get diagnostics from the WASM module
+    connection.sendDiagnostics({
+        uri: change.document.uri,
+        diagnostics: []
+    });
 });
 
 // Start the language server
 documents.listen(connection);
 connection.listen();
+
+console.log('Language server worker running...');

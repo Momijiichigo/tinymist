@@ -5,8 +5,9 @@ This package integrates the Tinymist typst language server with Monaco Editor, p
 ## Features
 
 - Syntax highlighting for Typst files
-- Autocompletion
-- Hover information
+- Autocompletion for Typst syntax and commands
+- Hover information for Typst elements
+- Document symbols
 - More features coming soon!
 
 ## Installation
@@ -35,21 +36,33 @@ const languageClient = createMonacoLanguageClient(worker);
 languageClient.start();
 ```
 
-## Development
+## Implementation Details
 
 This package contains:
 - A TypeScript wrapper around the Monaco editor integration
 - A WebAssembly module with the Tinymist language server
 
+The package provides a WebAssembly implementation of the Language Server Protocol (LSP) that runs directly in the browser. This enables features like code completion, hover information, and document symbols without requiring a backend server.
+
+## Development
+
 ### Building
 
 ```bash
 # Build the WASM module
-wasm-pack build crates/tinymist-wasm
+wasm-pack build --target bundler crates/tinymist-wasm
 
 # Build the TypeScript package
 npm run build
 ```
+
+### Extending
+
+To add more LSP features:
+
+1. Extend the Rust implementation in `src/lib.rs` with new methods
+2. Update the worker.ts file to handle new LSP method requests
+3. Rebuild using wasm-pack
 
 ## License
 

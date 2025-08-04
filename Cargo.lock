@@ -4729,9 +4729,16 @@ name = "tinymist-wasm"
 version = "0.13.18"
 dependencies = [
  "console_error_panic_hook",
+ "ecow",
  "js-sys",
+ "lsp-types",
  "serde",
  "serde-wasm-bindgen",
+ "tinymist-project",
+ "tinymist-query",
+ "tinymist-world",
+ "typst",
+ "typst-shim",
  "wasm-bindgen",
  "web-sys",
 ]
